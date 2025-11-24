@@ -27,6 +27,7 @@ python app.py
 
 5. Click anywhere on the map to see wave height data
 
+PS: create a .gitignore for venv folder or ignore the changes by yourself
 ## Project Structure
 
 ```
@@ -80,3 +81,4 @@ Wave data from ERA5 reanalysis dataset (ECMWF)
 - `swh`: Significant wave height
 - `mwd`: Mean wave direction
 - `mwp`: Mean wave period
+
