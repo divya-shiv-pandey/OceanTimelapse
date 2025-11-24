@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Floating Solar - Wave Height Inspector</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .subtitle {
+            font-size: 14px;
+            color: #bdc3c7;
+            margin-top: 5px;
+        }
+        
+        #map {
+            flex: 1;
+            width: 100%;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 90px;
+            right: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            min-width: 280px;
+            z-index: 1000;
+        }
+        
+        .info-panel h3 {
+            margin-bottom: 15px;
+            font-size: 16px;
+            color: #2c3e50;
+        }
+        
+        .info-item {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .label {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .value {
+            font-size: 18px;
+            color: #2c3e50;
+            font-weight: 600;
+            margin-top: 3px;
+        }
+        
+        .value.large {
+            font-size: 32px;
+            color: #3498db;
+        }
+        
+        .coords {
+            font-size: 13px;
+            color: #95a5a6;
+            margin-top: 3px;
+        }
+        
+        .instruction {
+            background: #ecf0f1;
+            padding: 12px;
+            border-radius: 5px;
+            font-size: 13px;
+            color: #34495e;
+            text-align: center;
+        }
+        
+        .loading {
+            display: none;
+            color: #3498db;
+            font-size: 14px;
+            text-align: center;
+            padding: 10px;
+        }
+        
+        .error {
+            background: #e74c3c;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 13px;
+            display: none;
+        }
+        
+        .animation-controls {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #ecf0f1;
+            display: none;
+        }
+        
+        .animation-controls h4 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .play-button {
+            width: 100%;
+            padding: 10px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .play-button:hover {
+            background: #2980b9;
+        }
+        
+        .play-button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        .time-display {
+            text-align: center;
+            font-size: 16px;
+            font-weight: 600;
+            color: #3498db;
+            margin-bottom: 10px;
+        }
+        
+        .wave-chart {
+            width: 100%;
+            height: 150px;
+            margin-top: 10px;
+            position: relative;
+        }
+        
+        .wave-bar {
+            position: absolute;
+            bottom: 0;
+            background: #3498db;
+            opacity: 0.3;
+            transition: opacity 0.2s;
+        }
+        
+        .wave-bar.active {
+            background: #e74c3c;
+            opacity: 1;
+        }
+        
+        .speed-control {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        
+        .speed-btn {
+            flex: 1;
+            padding: 5px;
+            background: #ecf0f1;
+            border: 1px solid #bdc3c7;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .speed-btn.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🌊 Floating Solar - Wave Height Inspector</h1>
+        <div class="subtitle">Global wave height data for 2019-01-01</div>
+    </header>
+    
+    <div id="map"></div>
+    
+    <div class="info-panel">
+        <h3>Wave Height Data</h3>
+        <div class="instruction" id="instruction">
+            Click anywhere on the map to inspect wave height
+        </div>
+        <div class="loading" id="loading">Fetching data...</div>
+        <div class="error" id="error"></div>
+        <div id="results" style="display: none;">
+            <div class="info-item">
+                <div class="label">Maximum Wave Height</div>
+                <div class="value large" id="maxHeight">--</div>
+            </div>
+            <div class="info-item">
+                <div class="label">Mean Wave Height</div>
+                <div class="value" id="meanHeight">--</div>
+            </div>
+            <div class="info-item">
+                <div class="label">Minimum Wave Height</div>
+                <div class="value" id="minHeight">--</div>
+            </div>
+            <div class="info-item">
+                <div class="label">Location</div>
+                <div class="coords" id="location">--</div>
+            </div>
+        </div>
+        
+        <div class="animation-controls" id="animationControls">
+            <h4>📊 Hourly Animation (24h)</h4>
+            <div class="time-display" id="timeDisplay">00:00 UTC - 0.0 m</div>
+            <button class="play-button" id="playButton">▶ Play Animation</button>
+            <div class="speed-control">
+                <button class="speed-btn" data-speed="2000">Slow</button>
+                <button class="speed-btn active" data-speed="500">Normal</button>
+                <button class="speed-btn" data-speed="100">Fast</button>
+            </div>
+            <div class="wave-chart" id="waveChart"></div>
+        </div>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const bounds = [[-60, -180], [70, 179.5]];
+        
+        const map = L.map('map', {
+            maxBounds: bounds,
+            maxBoundsViscosity: 1.0,
+            minZoom: 2
+        }).setView([5, 0], 2);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        L.rectangle(bounds, {
+            color: '#3498db',
+            weight: 2,
+            fill: false,
+            dashArray: '5, 5'
+        }).addTo(map);
+        
+        let marker = null;
+        
+        let timeseriesData = null;
+        let animationInterval = null;
+        let currentFrame = 0;
+        let animationSpeed = 500;
+        
+        map.on('click', async function(e) {
+            const lat = e.latlng.lat;
+            const lon = e.latlng.lng;
+            
+            console.log('Clicked coordinates:', { lat, lon });
+            
+            if (lat < -60 || lat > 70 || lon < -180 || lon > 179.5) {
+            if (lat < -60 || lat > 70 || lon < -180 || lon > 179.5) {
+                document.getElementById('error').textContent = 
+                    'Click within the data coverage area (shown by dashed blue rectangle)';
+                document.getElementById('error').style.display = 'block';
+                return;
+            }
+            
+            document.getElementById('instruction').style.display = 'none';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+            
+            if (marker) {
+                map.removeLayer(marker);
+            }
+            
+            marker = L.marker([lat, lon]).addTo(map);
+            
+            try {
+                console.log('Sending request:', { lat, lon });
+                const response = await fetch('/wave_height', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ lat, lon })
+                });
+                
+                const data = await response.json();
+                console.log('Received response:', data);
+                
+                if (response.ok) {
+                    document.getElementById('maxHeight').textContent = data.max_wave_height + ' m';
+                    document.getElementById('meanHeight').textContent = data.mean_wave_height + ' m';
+                    document.getElementById('minHeight').textContent = data.min_wave_height + ' m';
+                    document.getElementById('location').textContent = 
+                        `Lat: ${data.actual_lat.toFixed(2)}°, Lon: ${data.actual_lon.toFixed(2)}°`;
+                    
+                    marker.bindPopup(
+                        `<b>Max Wave Height:</b> ${data.max_wave_height} m<br>` +
+                        `<b>Location:</b> ${data.actual_lat.toFixed(2)}°, ${data.actual_lon.toFixed(2)}°`
+                    ).openPopup();
+                    
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('results').style.display = 'block';
+                    
+                    loadTimeseries(lat, lon);
+                } else {
+                    throw new Error(data.error || 'Failed to fetch data');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').textContent = error.message;
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('instruction').style.display = 'block';
+            }
+        });
+        
+        async function loadTimeseries(lat, lon) {
+            try {
+                const response = await fetch('/wave_height_timeseries', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ lat, lon })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    timeseriesData = data.timeseries;
+                    renderChart();
+                    document.getElementById('animationControls').style.display = 'block';
+                    currentFrame = 0;
+                    updateDisplay();
+                }
+            } catch (error) {
+                console.error('Failed to load timeseries:', error);
+            }
+        }
+        
+        function renderChart() {
+            const chart = document.getElementById('waveChart');
+            chart.innerHTML = '';
+            
+            if (!timeseriesData) return;
+            
+            const maxHeight = Math.max(...timeseriesData.map(d => d.hmax));
+            const barWidth = 100 / timeseriesData.length;
+            
+            timeseriesData.forEach((point, index) => {
+                const bar = document.createElement('div');
+                bar.className = 'wave-bar';
+                bar.style.left = `${index * barWidth}%`;
+                bar.style.width = `${barWidth}%`;
+                bar.style.height = `${(point.hmax / maxHeight) * 100}%`;
+                bar.dataset.index = index;
+                chart.appendChild(bar);
+            });
+        }
+        
+        function updateDisplay() {
+            if (!timeseriesData || currentFrame >= timeseriesData.length) return;
+            
+            const point = timeseriesData[currentFrame];
+            const hour = point.hour.toString().padStart(2, '0');
+            
+            document.getElementById('timeDisplay').textContent = 
+                `${hour}:00 UTC - ${point.hmax} m`;
+            
+            document.querySelectorAll('.wave-bar').forEach((bar, index) => {
+                bar.classList.toggle('active', index === currentFrame);
+            });
+            
+            if (marker) {
+                const popup = marker.getPopup();
+                if (popup) {
+                    const data = timeseriesData[currentFrame];
+                    popup.setContent(
+                        `<b>Wave Height at ${hour}:00:</b> ${data.hmax} m<br>` +
+                        `<b>Hour ${currentFrame + 1}/24</b>`
+                    );
+                }
+            }
+        }
+        
+        document.getElementById('playButton').addEventListener('click', function() {
+            if (animationInterval) {
+                clearInterval(animationInterval);
+                animationInterval = null;
+                this.textContent = '▶ Play Animation';
+            } else {
+                this.textContent = '⏸ Pause';
+                animationInterval = setInterval(() => {
+                    currentFrame = (currentFrame + 1) % timeseriesData.length;
+                    updateDisplay();
+                }, animationSpeed);
+            }
+        });
+        
+        document.querySelectorAll('.speed-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                animationSpeed = parseInt(this.dataset.speed);
+                
+                if (animationInterval) {
+                    clearInterval(animationInterval);
+                    animationInterval = setInterval(() => {
+                        currentFrame = (currentFrame + 1) % timeseriesData.length;
+                        updateDisplay();
+                    }, animationSpeed);
+                }
+            });
+        });
+        
+        document.getElementById('waveChart').addEventListener('click', function(e) {
+            if (e.target.classList.contains('wave-bar')) {
+                currentFrame = parseInt(e.target.dataset.index);
+                updateDisplay();
+            }
+        });
+    </script>
+</body>
+</html>
