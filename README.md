@@ -13,8 +13,12 @@ Interactive web application to inspect maximum wave heights globally for floatin
 ```bash
 pip install xarray netCDF4 numpy flask
 ```
+3. Download the netCDF4 data:
+    - Download from: [Google Drive Link](https://drive.google.com/file/d/1kL8bXKfEHFTsFdkjMFodiRRsfU5LtrVi/view)
+    - Unzip in the root directory. The folder structure should look like:
+      `waves_2019-01-01/waves_2019-01-01.nc`
 
-3. Run the application:
+4. Run the application:
 ```bash
 python app.py
 ```
